@@ -7,17 +7,13 @@
 
 int main(){
 
-    // int fd=open("Testing.txt",O_WRONLY|O_CREAT|O_TRUNC,0666);
-    int fd=open("Testing.txt",O_RDONLY);
+    int fd=open("Testing.txt",O_WRONLY|O_CREAT|O_TRUNC,0666);
     if(fd == -1){
         exit(0);
     }
-    dup2(fd,0);
-    char str[1024];
-    fgets(str,sizeof(str),stdin); // readds from file as we redirrected standard input to file
-
-    printf("%s\n",str);// ..pinnt the data we got from file
-
+    dup2(fd,1);
+    
+    printf("%s","Hello fucker");
     
     close(fd);
     
