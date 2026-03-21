@@ -13,7 +13,7 @@ int main(){
     }
     dup2(fd,1);
     
-    printf("%s","Hello fucker");
+    printf("%s","Hello Lucker");
     
     close(fd);
     
