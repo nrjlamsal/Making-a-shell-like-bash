@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h> // fork,execvp
 #include <sys/wait.h> // wait
+#include <fcntl.h> //open(),O_WRONLY flags etc
 // #include <dirent.h>
 
 
@@ -11,6 +12,12 @@
 #define MAX_INPUT 1024
 #endif
 
+
+void free_args(char **argv, int argc) {
+    for (int i = 0; i < argc; i++)
+        free(argv[i]);
+    free(argv);
+}
 
 int makearg(char s[],char ***args){
     // if problem return -1 else return 1
@@ -61,6 +68,71 @@ free(buffer);
  return aindex;
 }
 
+void redirection_handler(char **args){ 
+    // here we pass only pointer to pointer because we are only changing 
+    // the content of args instead of where args as a whole points to.
+
+    for(int i =0 ; args[i]!=NULL;i++){
+        //args[i] == "<" in C u cannot directly compare sring it compares meomry addresses
+        if(strcmp(args[i], "<") == 0){ // for the input 
+            if(args[i+1] == NULL){
+                fprintf(stderr,"Error, Missing the input direction\n");
+                exit(1);
+            }
+            int fd = open(args[i+1],O_RDONLY);
+            if(fd < 0){
+                 perror(args[i+1]);
+                 exit(1);
+            }
+            for(;args[i]!=NULL;i++){
+                args[i]=NULL;
+            }
+            dup2(fd,0);
+            close(fd);
+
+            break;
+        }else if(strcmp(args[i], ">") == 0){ //for overwritng
+             if(args[i+1] == NULL){
+                printf("%s","Error, Missing the output direction\n");
+                exit(1);
+            }
+            int fd = open(args[i+1],O_WRONLY|O_CREAT|O_TRUNC,0644);
+            if(fd < 0){
+                 perror(args[i+1]);
+                  exit(1);
+            }
+             for(;args[i]!=NULL;i++){
+                args[i]=NULL;
+            }
+            dup2(fd,1);
+            close(fd);
+
+
+            break;
+        }else if(strcmp(args[i], ">>") == 0){ // for append
+             if(args[i+1] == NULL){
+                printf("%s","Error, Missing the output direction\n");
+                exit(1);
+            }
+            int fd = open(args[i+1],O_WRONLY|O_CREAT|O_APPEND,0644);
+            if(fd < 0){
+                 perror(args[i+1]);
+                  exit(1);
+            }
+             for(;args[i]!=NULL;i++){
+                args[i]=NULL;
+            }
+            dup2(fd,1);
+            close(fd);
+
+
+            break;
+        }
+    }
+
+
+}
+
 void execute(char **args){
 
     pid_t processid = fork();
@@ -69,6 +141,7 @@ void execute(char **args){
         perror("Fork failed");
         return ;
     }else if(processid == 0){
+        redirection_handler(args);
         execvp(args[0],args);
         perror(args[0]);
         exit(1);
@@ -83,6 +156,7 @@ int main(){
 
     while(1){
         printf("%s","nrjshell$ ");
+        fflush(stdout);   
         if(fgets(command,sizeof(command),stdin) == NULL){
             break; //error from standard input
         }
@@ -106,29 +180,19 @@ int main(){
                         perror("cd failed");
                     }
             }
-    // free memory for this command
-    for(int i = 0; i < argc; i++) free(argv[i]);
-    free(argv);
-    argv = NULL;
-    continue; // skip execvp
-    }
+            free_args(argv,argc);
+            continue; // skip execvp
 
-   if (strcmp(argv[0], "exit") == 0) {
-    // free memory before exiting
-       for(int i = 0; i < argc; i++) free(argv[i]);
-
-           free(argv);
-           argv = NULL;
+        }else if(strcmp(argv[0], "exit") == 0) {
+             free_args(argv,argc);
           break; // exit the shell
-    }
-        execute(argv);
-
-
-        for(int i = 0; i < argc; i++){// free each word
-          free(argv[i]);
+        }else{
+             execute(argv);
         }
-          free(argv);
-          argv = NULL;
+        free_args(argv,argc);
+        argv = NULL;
+
+      
      
     }
 
