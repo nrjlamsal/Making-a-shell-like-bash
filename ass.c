@@ -1,9 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h> // fork,execvp
+#include <sys/wait.h> // wait
+// #include <dirent.h>
+
 
 #define MAX_ARGS 1024
+#ifndef MAX_INPUT
 #define MAX_INPUT 1024
+#endif
 
 
 int makearg(char s[],char ***args){
@@ -54,20 +60,81 @@ int makearg(char s[],char ***args){
 free(buffer);
  return aindex;
 }
+
+void execute(char **args){
+
+    pid_t processid = fork();
+
+    if(processid < 0){
+        perror("Fork failed");
+        return ;
+    }else if(processid == 0){
+        execvp(args[0],args);
+        perror(args[0]);
+        exit(1);
+    }else{
+        waitpid(processid,NULL,0);
+    }
+
+}
 int main(){
+    char command[1024];
+    char **argv = NULL;
 
-    char **args=NULL;
-    char str[]="ls -l file";
-    int argc=makearg(str,&args);
+    while(1){
+        printf("%s","nrjshell$ ");
+        if(fgets(command,sizeof(command),stdin) == NULL){
+            break; //error from standard input
+        }
+        command[strcspn(command,"\n")] = '\0';
 
-    for(int i = 0 ; i < argc ; i++){
-        printf("%s\n",args[i]);
+        if(command[0] == '\0'){
+            continue;
+        }
+
+        int argc =makearg(command,&argv);
+
+        if(argc <= 0){
+            continue; //Not enough argument is passed 
+        }
+
+        if (strcmp(argv[0], "cd") == 0) {
+           if (argv[1] == NULL) {
+               chdir(getenv("HOME")); // default home
+            } else {
+                    if (chdir(argv[1]) != 0) {
+                        perror("cd failed");
+                    }
+            }
+    // free memory for this command
+    for(int i = 0; i < argc; i++) free(argv[i]);
+    free(argv);
+    argv = NULL;
+    continue; // skip execvp
     }
 
-      for(int i = 0; i < argc; i++){// free each word
-        free(args[i]);
+   if (strcmp(argv[0], "exit") == 0) {
+    // free memory before exiting
+       for(int i = 0; i < argc; i++) free(argv[i]);
+
+           free(argv);
+           argv = NULL;
+          break; // exit the shell
     }
-        free(args);
+        execute(argv);
+
+
+        for(int i = 0; i < argc; i++){// free each word
+          free(argv[i]);
+        }
+          free(argv);
+          argv = NULL;
+     
+    }
+
+
+  
+
 
 
 
