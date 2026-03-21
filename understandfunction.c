@@ -12,10 +12,9 @@ int main(){
         exit(0);
     }
     dup2(fd,1);
-    
-    printf("%s","Hello Lucker");
-    
-    close(fd);
+     char * argv[]={ "ls","-l",NULL};
+     close(fd);
+    execvp("ls",argv);
     
    return 0;
 }
